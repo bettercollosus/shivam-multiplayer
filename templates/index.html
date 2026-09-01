@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shivam's Game Zone — Multiplayer</title>
+<style>
+  body {
+    margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #1e1e2f; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color: white;
+  }
+  .card {
+    background: #2a2a45; padding: 40px; border-radius: 16px; width: 340px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); text-align: center;
+  }
+  h1 { font-size: 22px; margin-bottom: 5px; }
+  p.sub { color: #b8b8d0; margin-top: 0; margin-bottom: 25px; font-size: 14px; }
+  input {
+    width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none;
+    font-size: 15px; box-sizing: border-box; text-align: center;
+  }
+  button {
+    width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none;
+    font-size: 15px; font-weight: bold; cursor: pointer; color: white;
+  }
+  .create { background: #4CAF50; }
+  .join { background: #3a3a5c; }
+  .divider { margin: 25px 0; color: #6b6b8a; font-size: 13px; }
+  .error { color: #ff6961; margin-top: 15px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎮 Shivam's Game Zone</h1>
+    <p class="sub">Play together, wherever you are</p>
+
+    <form action="/create" method="POST">
+      <input type="text" name="name" placeholder="Your name" required>
+      <button type="submit" class="create">Create a Room</button>
+    </form>
+
+    <div class="divider">— OR —</div>
+
+    <form action="/join" method="POST">
+      <input type="text" name="name" placeholder="Your name" required>
+      <input type="text" name="room_id" placeholder="Room code" required style="text-transform:uppercase;">
+      <button type="submit" class="join">Join a Room</button>
+    </form>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+  </div>
+</body>
+</html>

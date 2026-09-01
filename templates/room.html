@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Room {{ room_id }} — Game Zone</title>
+<style>
+  body {
+    margin: 0; min-height: 100vh; background: #1e1e2f; color: white;
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif; display: flex;
+    flex-direction: column; align-items: center; padding: 30px 15px;
+  }
+  h1 { font-size: 20px; margin-bottom: 0; }
+  .room-code { color: #f4d35e; font-weight: bold; }
+  .link-box {
+    background: #2a2a45; padding: 10px 15px; border-radius: 8px; margin: 15px 0;
+    font-size: 13px; word-break: break-all; text-align: center; max-width: 420px;
+  }
+  .players { margin: 10px 0 25px 0; color: #b8b8d0; font-size: 14px; }
+  .menu button {
+    margin: 6px; padding: 12px 20px; border-radius: 8px; border: none;
+    background: #3a3a5c; color: white; font-size: 14px; cursor: pointer;
+  }
+  .menu button:hover { background: #4a4a75; }
+  .hidden { display: none; }
+  .status { margin: 15px 0; font-size: 15px; color: #f4d35e; min-height: 20px; text-align:center;}
+
+  /* Tic Tac Toe */
+  #ttt-board { display: grid; grid-template-columns: repeat(3, 80px); gap: 6px; margin: 20px 0; }
+  #ttt-board button {
+    width: 80px; height: 80px; font-size: 28px; font-weight: bold;
+    background: #3a3a5c; color: white; border: none; border-radius: 8px; cursor: pointer;
+  }
+
+  /* RPS */
+  .rps-choices button {
+    font-size: 30px; width: 70px; height: 70px; margin: 8px; border-radius: 50%;
+    border: none; background: #3a3a5c; cursor: pointer;
+  }
+
+  /* Reflex */
+  #reflex-btn {
+    width: 220px; height: 220px; border-radius: 50%; border: none;
+    background: #b23b3b; color: white; font-size: 18px; font-weight: bold; cursor: pointer;
+    margin-top: 20px;
+  }
+
+  .back-btn {
+    margin-top: 25px; background: #ff6961; color: white; border: none;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <h1>Room: <span class="room-code">{{ room_id }}</span></h1>
+  <div class="link-box">Share this link: <span id="share-link"></span></div>
+  <div class="players" id="players-list">Waiting for players...</div>
+
+  <div id="menu" class="menu hidden">
+    <p>Pick a game (either player can pick):</p>
+    <button onclick="selectGame('ttt')">❌⭕ Tic Tac Toe</button>
+    <button onclick="selectGame('rps')">✊ Rock Paper Scissors</button>
+    <button onclick="selectGame('reflex')">⚡ Reflex Race</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <!-- TIC TAC TOE -->
+  <div id="ttt-game" class="hidden">
+    <div id="ttt-board"></div>
+    <button class="back-btn" onclick="restartTTT()">Restart</button>
+  </div>
+
+  <!-- ROCK PAPER SCISSORS -->
+  <div id="rps-game" class="hidden">
+    <div class="rps-choices">
+      <button onclick="playRPS('rock')">🪨</button>
+      <button onclick="playRPS('paper')">📄</button>
+      <button onclick="playRPS('scissors')">✂️</button>
+    </div>
+  </div>
+
+  <!-- REFLEX RACE -->
+  <div id="reflex-game" class="hidden">
+    <button id="reflex-btn" onclick="reflexClick()">Get Ready...</button>
+    <br>
+    <button class="back-btn" onclick="startReflex()">Start Round</button>
+  </div>
+
+  <button class="back-btn hidden" id="back-to-menu" onclick="backToMenu()">⬅ Back to Menu</button>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const roomId = "{{ room_id }}";
+  const myName = "{{ name }}";
+  const socket = io();
+
+  let myPlayerIndex = null;
+  let currentGame = null;
+
+  document.getElementById("share-link").innerText = window.location.href;
+
+  socket.on("connect", () => {
+    socket.emit("join", { room_id: roomId, name: myName });
+  });
+
+  socket.on("joined", (data) => {
+    myPlayerIndex = data.player_index;
+  });
+
+  socket.on("room_full", () => {
+    document.getElementById("status").innerText = "Room is full (2 players max).";
+  });
+
+  socket.on("player_list", (data) => {
+    document.getElementById("players-list").innerText =
+      "Players: " + data.players.join(" vs ");
+  });
+
+  socket.on("ready_to_play", () => {
+    document.getElementById("menu").classList.remove("hidden");
+    document.getElementById("status").innerText = "Both players connected! Choose a game.";
+  });
+
+  socket.on("opponent_left", () => {
+    document.getElementById("status").innerText = "Your opponent left the room.";
+  });
+
+  function selectGame(game) {
+    socket.emit("select_game", { room_id: roomId, game: game });
+  }
+
+  socket.on("game_selected", (data) => {
+    currentGame = data.game;
+    document.getElementById("menu").classList.add("hidden");
+    document.getElementById("ttt-game").classList.add("hidden");
+    document.getElementById("rps-game").classList.add("hidden");
+    document.getElementById("reflex-game").classList.add("hidden");
+    document.getElementById("back-to-menu").classList.remove("hidden");
+    document.getElementById("status").innerText = "";
+
+    if (data.game === "ttt") {
+      document.getElementById("ttt-game").classList.remove("hidden");
+      buildTTTBoard();
+    } else if (data.game === "rps") {
+      document.getElementById("rps-game").classList.remove("hidden");
+    } else if (data.game === "reflex") {
+      document.getElementById("reflex-game").classList.remove("hidden");
+    }
+  });
+
+  function backToMenu() {
+    document.getElementById("ttt-game").classList.add("hidden");
+    document.getElementById("rps-game").classList.add("hidden");
+    document.getElementById("reflex-game").classList.add("hidden");
+    document.getElementById("back-to-menu").classList.add("hidden");
+    document.getElementById("menu").classList.remove("hidden");
+    document.getElementById("status").innerText = "";
+  }
+
+  /* ---------------- TIC TAC TOE ---------------- */
+  function buildTTTBoard() {
+    const board = document.getElementById("ttt-board");
+    board.innerHTML = "";
+    for (let i = 0; i < 9; i++) {
+      const btn = document.createElement("button");
+      btn.id = "cell-" + i;
+      btn.onclick = () => socket.emit("ttt_move", { room_id: roomId, index: i });
+      board.appendChild(btn);
+    }
+  }
+
+  socket.on("ttt_update", (state) => {
+    state.board.forEach((val, i) => {
+      const cell = document.getElementById("cell-" + i);
+      if (cell) cell.innerText = val;
+    });
+    const statusEl = document.getElementById("status");
+    if (state.winner) {
+      statusEl.innerText = state.winner === "Draw" ? "It's a draw! 🤝" : `${state.winner} wins! 🎉`;
+    } else {
+      const mySymbol = myPlayerIndex === 0 ? "X" : "O";
+      statusEl.innerText = state.turn === mySymbol ? "Your turn!" : "Opponent's turn...";
+    }
+  });
+
+  function restartTTT() {
+    socket.emit("ttt_restart", { room_id: roomId });
+  }
+
+  /* ---------------- ROCK PAPER SCISSORS ---------------- */
+  function playRPS(choice) {
+    socket.emit("rps_choice", { room_id: roomId, choice: choice });
+    document.getElementById("status").innerText = "Waiting for opponent...";
+  }
+
+  socket.on("rps_result", (data) => {
+    let resultText;
+    if (data.result === "draw") {
+      resultText = "It's a tie! 🤝";
+    } else if ((data.result === "p1" && myPlayerIndex === 0) || (data.result === "p2" && myPlayerIndex === 1)) {
+      resultText = "You win! 🎉";
+    } else {
+      resultText = "You lose! 😅";
+    }
+    document.getElementById("status").innerText =
+      `${data.p1_name}: ${data.p1_choice} | ${data.p2_name}: ${data.p2_choice} — ${resultText}`;
+  });
+
+  /* ---------------- REFLEX RACE ---------------- */
+  function startReflex() {
+    document.getElementById("reflex-btn").innerText = "Wait...";
+    document.getElementById("reflex-btn").style.background = "#b23b3b";
+    document.getElementById("status").innerText = "Get ready...";
+    socket.emit("reflex_start", { room_id: roomId });
+  }
+
+  socket.on("reflex_go", () => {
+    document.getElementById("reflex-btn").innerText = "CLICK NOW!";
+    document.getElementById("reflex-btn").style.background = "#3fae4f";
+  });
+
+  function reflexClick() {
+    socket.emit("reflex_click", { room_id: roomId });
+  }
+
+  socket.on("reflex_result", (data) => {
+    let winnerText;
+    if (data.p1_time < data.p2_time) {
+      winnerText = `${data.p1_name} wins! 🏆`;
+    } else if (data.p2_time < data.p1_time) {
+      winnerText = `${data.p2_name} wins! 🏆`;
+    } else {
+      winnerText = "It's a tie!";
+    }
+    document.getElementById("status").innerText =
+      `${data.p1_name}: ${data.p1_time}ms | ${data.p2_name}: ${data.p2_time}ms — ${winnerText}`;
+    document.getElementById("reflex-btn").innerText = "Get Ready...";
+    document.getElementById("reflex-btn").style.background = "#b23b3b";
+  });
+</script>
+</body>
+</html>
