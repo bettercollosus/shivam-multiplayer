@@ -13,20 +13,9 @@ HOW TO RUN LOCALLY:
     pip install -r requirements.txt
     python app.py
   Then open http://localhost:5000 in your browser.
-
-HOW TO SHARE A LINK WITH SOMEONE FAR AWAY (quick way):
-  1. Run the app as above (keep it running).
-  2. Install ngrok (https://ngrok.com/download), sign up (free).
-  3. In a new terminal run:  ngrok http 5000
-  4. ngrok gives you a public URL like https://abcd1234.ngrok-free.app
-  5. Share THAT link with your girlfriend instead of localhost.
-     She opens it, joins your room code, and you're both in the same game.
-
-  (ngrok's free URL changes each time you restart it. For a permanent
-   link, deploy this app to a free host like Render.com or Railway.app —
-   see README.md for steps.)
 """
 
+import os
 import random
 import string
 import time
@@ -37,14 +26,6 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "shivam-secret-key-change-me"
 socketio = SocketIO(app, async_mode="threading")
 
-# ---------------------------------------------------------------------------
-# In-memory room storage (fine for a small app between 2 people).
-# rooms[room_id] = {
-#     "players": [{"sid": str, "name": str}, ...]   # max 2
-#     "game": None | "ttt" | "rps" | "reflex"
-#     "state": { ...game specific state... }
-# }
-# ---------------------------------------------------------------------------
 rooms = {}
 sid_to_room = {}   # socket id -> room_id
 
@@ -60,9 +41,6 @@ def new_ttt_state():
     return {"board": [""] * 9, "turn": "X", "winner": None}
 
 
-# ---------------------------------------------------------------------------
-# ROUTES
-# ---------------------------------------------------------------------------
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -93,9 +71,6 @@ def room(room_id):
     return render_template("room.html", room_id=room_id, name=name)
 
 
-# ---------------------------------------------------------------------------
-# SOCKET.IO EVENTS
-# ---------------------------------------------------------------------------
 @socketio.on("join")
 def on_join(data):
     room_id = data["room_id"]
@@ -157,7 +132,6 @@ def on_select_game(data):
     emit("game_selected", {"game": game}, room=room_id)
 
 
-# ---------------- TIC TAC TOE ----------------
 @socketio.on("ttt_move")
 def on_ttt_move(data):
     room_id = data["room_id"]
@@ -212,7 +186,6 @@ def check_ttt_winner(board):
     return None
 
 
-# ---------------- ROCK PAPER SCISSORS ----------------
 @socketio.on("rps_choice")
 def on_rps_choice(data):
     room_id = data["room_id"]
@@ -250,7 +223,6 @@ def decide_rps(c1, c2):
     return "p1" if beats[c1] == c2 else "p2"
 
 
-# ---------------- REFLEX RACE ----------------
 @socketio.on("reflex_start")
 def on_reflex_start(data):
     room_id = data["room_id"]
@@ -293,4 +265,5 @@ def on_reflex_click(data):
 
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
